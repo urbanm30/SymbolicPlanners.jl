@@ -33,16 +33,9 @@ WeightedAStarPlanner(heuristic::Heuristic, h_mult::Real; kwargs...) =
 
 function solve(planner::ForwardPlanner,
                domain::Domain, state::State, spec::Specification)
-    # println("This is the dev version")
-    unpack_start = time() 
     @unpack h_mult, heuristic, save_search = planner
-    unpack_end = time() 
-    println("Unpack: " , unpack_end - unpack_start)
     # Precompute heuristic information
-    precomp_start = time() 
     precompute!(heuristic, domain, state, spec)
-    precomp_end = time() 
-    println("Precompute: ", precomp_end - precomp_start)
 
     # Initialize search tree and priority queue
     node_id = hash(state)
@@ -51,16 +44,10 @@ function solve(planner::ForwardPlanner,
     priority = (est_cost, est_cost, 0)
     queue = PriorityQueue(node_id => priority)
     # Run the search
-    # search_start = time() 
     status, node_id, count = search!(planner, domain, spec, search_tree, queue)
-    # search_end = time()
-    # println("Search time: ", search_end - search_start)
     # Reconstruct plan and return solution
     if status != :failure
-        # recons_start = time()
         plan, traj = reconstruct(node_id, search_tree)
-        # recons_end = time() 
-        # println("Reconstruction time: ", recons_end - recons_start)
         if save_search
             return PathSearchSolution(status, plan, traj,
                                       count, search_tree, queue)
