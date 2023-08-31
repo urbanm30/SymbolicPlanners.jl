@@ -1,38 +1,75 @@
 # SymbolicPlanners.jl
 
+[![Documentation (Stable)](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaplanners.github.io/SymbolicPlanners.jl/stable)
+[![Documentation (Latest)](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliaplanners.github.io/SymbolicPlanners.jl/dev)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/JuliaPlanners/SymbolicPlanners.jl/CI.yml?branch=master)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/JuliaPlanners/SymbolicPlanners.jl)
+![License](https://img.shields.io/github/license/JuliaPlanners/SymbolicPlanners.jl?color=lightgrey)
+
 Symbolic planners for problems and domains specified in [PDDL](https://github.com/JuliaPlanners/PDDL.jl).
 
 ## Installation
 
-Make sure [PDDL.jl](https://github.com/JuliaPlanners/PDDL.jl) is installed. Then run
+Make sure [PDDL.jl](https://github.com/JuliaPlanners/PDDL.jl) is installed. For the stable version, press `]` to enter the Julia package manager REPL, then run:
+```
+add SymbolicPlanners
+```
+
+For the latest development version, run:
 ```
 add https://github.com/JuliaPlanners/SymbolicPlanners.jl
 ```
-at the Julia package manager.
 
 ## Features
 
 - Forward state-space planning (A*, BFS, etc.)
 - Backward (i.e. regression) planning
-- Policy-based planning (RTDP, MCTS, etc.)
+- Policy-based planning (RTDP, RTHS, MCTS, etc.)
 - Relaxed-distance heuristics (Manhattan, _h_<sub>add</sub>, _h_<sub>max</sub>, etc.)
 - Policy and plan simulation
 - Modular framework for goal, reward and cost specifications
 - Support for PDDL domains with numeric fluents and custom datatypes
 
+## Usage
+
+A simple usage example is shown below. More information can be found in the [documentation](https://juliaplanners.github.io/SymbolicPlanners.jl/dev).
+
+```julia
+using PDDL, PlanningDomains, SymbolicPlanners
+
+# Load Blocksworld domain and problem
+domain = load_domain(:blocksworld)
+problem = load_problem(:blocksworld, "problem-4")
+
+# Construct initial state from domain and problem
+state = initstate(domain, problem)
+
+# Construct goal specification that requires minimizing plan length
+spec = MinStepsGoal(problem)
+
+# Construct A* planner with h_add heuristic
+planner = AStarPlanner(HAdd())
+
+# Find a solution given the initial state and specification
+sol = planner(domain, state, spec)
+```
+
 ## Planners
 
-- [Forward breadth-first search](src/planners/bfs.jl)
-- [Forward best-first search (A*, Greedy, etc.)](src/planners/forward.jl)
-- [Backward best-first search (A*, Greedy, etc.)](src/planners/backward.jl)
+- [Forward Breadth-First Search](src/planners/bfs.jl)
+- [Forward Heuristic Search (A*, Greedy, etc.)](src/planners/forward.jl)
+- [Backward Heuristic Search (A*, Greedy, etc.)](src/planners/backward.jl)
+- [Bidirectional Heuristic Search](src/planners/bidirectional.jl)
 - [Real Time Dynamic Programming (RTDP)](src/planners/rtdp.jl)
+- [Real Time Heuristic Search (RTHS)](src/planners/rths.jl)
 - [Monte Carlo Tree Search (MCTS)](src/planners/mcts.jl)
-- [FastDownward and Pyperplan wrappers](src/planners/external.jl)
+- [FastDownward, Pyperplan, and ENHSP wrappers](src/planners/external.jl)
 
 ## Heuristics
 
 - [Goal Count](src/heuristics/basic.jl): counts the number of unsatisfied goals
-- [Manhattan](src/heuristics/basic.jl): L<sub>1</sub> distance for arbitrary numeric fluents
+- [Manhattan](src/heuristics/metric.jl): L<sub>1</sub> distance for arbitrary numeric fluents
+- [Euclidean](src/heuristics/metric.jl): L<sub>2</sub> distance for arbitrary numeric fluents
 - [HSP heuristics](src/heuristics/hsp.jl): _h_<sub>add</sub>, _h_<sub>max</sub>, etc.
 - [HSPr heuristics](src/heuristics/hsp.jl): the above, but for backward search
 - [FF heuristic](src/heuristics/ff.jl): length of a relaxed plan, used by the Fast-Forward planner
@@ -50,8 +87,11 @@ at the Julia package manager.
 
 ## Performance
 
-After Julia's JIT compilation, using SymbolicPlanners.jl on top of [PDDL.jl](https://github.com/JuliaPlanners/PDDL.jl) should be about 2 to 3x faster than [Pyperplan](https://github.com/aibasel/pyperplan) on the same machine when using reasonable search algorithms and heuristics.
+After Julia's JIT compilation, and using the same search algorithm (A*) and search heuristic (_h_<sub>add</sub>), SymbolicPlanners.jl with the [PDDL.jl](https://github.com/JuliaPlanners/PDDL.jl) compiler is (as of February 2022):
+- 10 to 50 times as fast as [Pyperplan](https://github.com/aibasel/pyperplan),
+- 0.1 to 1.2 times as fast as [FastDownward](https://www.fast-downward.org/),
+- 0.7 to 36 times as fast as [ENHSP](https://sites.google.com/view/enhsp/) on numeric domains without action costs.
 
-Below is a comparison of runtimes between SymbolicPlanners.jl + PDDL.jl vs. Pyperplan when solving Blocksworld problems using A* search and the _h_<sub>add</sub> heuristic (note that the y-axis is logarithmically scaled):
+A comparison on domains and problems from the 2000 and 2002 International Planning Competitions is shown below. Runtimes are relative to SymbolicPlanners.jl using the PDDL.jl compiler. In each cell, we report the first quartile (Q1), median (M), and third quartile (Q3) across solved problems. Experiment code is [available here](https://github.com/JuliaPlanners/SymbolicPlanners.jl/tree/experiments/experiments).
 
-![Blocksworld solution runtimes for Pyperplan vs. SymbolicPlanners.jl using the PDDL.jl interpreter and compiler](assets/blocksworld-pddljl-vs-pyperplan.png)
+![Runtime comparison for SymbolicPlanners.jl vs. Pyperplan, FastDownward and ENHSP](assets/runtime-comparison.png)

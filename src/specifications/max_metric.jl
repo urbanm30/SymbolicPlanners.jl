@@ -1,20 +1,30 @@
 export MaxMetricGoal
 
-"Goal specification where costs are differences in a state-based metric."
+"""
+    MaxMetricGoal(goals, metric::Term)
+    MaxMetricGoal(goal::Term, metric::Term)
+    MaxMetricGoal(problem::Problem)
+
+[`Goal`](@ref) specification where each step has a reward specified by the 
+difference in values of a `metric` formula between the next state and the
+current state, and the goal formula is a conjuction of `terms`.Planners called
+with this specification will try to maximize the `metric` formula when solving
+for the goal.
+"""
 struct MaxMetricGoal <: Goal
     terms::Vector{Term} # Goal terms to be satisfied
     metric::Term # Reward metric to be maximized
 end
 
 function MaxMetricGoal(problem::Problem)
-    goals = flatten_conjs(PDDL.get_goal(problem))
+    goals = PDDL.flatten_conjs(PDDL.get_goal(problem))
     metric = PDDL.get_metric(problem)
     metric = metric.name == :maximize ?
         metric.args[1] : Compound(:-, metric.args)
     return MaxMetricGoal(goals, metric)
 end
 MaxMetricGoal(goal::Term, metric::Term) =
-    MaxMetricGoal(flatten_conjs(goal), metric)
+    MaxMetricGoal(PDDL.flatten_conjs(goal), metric)
 
 Base.hash(spec::MaxMetricGoal, h::UInt) =
     hash(spec.metric, hash(Set(spec.terms), h))
@@ -29,3 +39,6 @@ get_cost(spec::MaxMetricGoal, domain::Domain, s1::State, ::Term, s2::State) =
 get_reward(spec::MaxMetricGoal, domain::Domain, s1::State, ::Term, s2::State) =
     domain[s2 => spec.metric] - domain[s1 => spec.metric]
 get_goal_terms(spec::MaxMetricGoal) = spec.terms
+
+set_goal_terms(spec::MaxMetricGoal, terms) =
+    MaxMetricGoal(terms, spec.metric)
